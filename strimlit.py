@@ -1,21 +1,28 @@
-class streamlit:
-    ...
-
-streamlit
-tensorflow
-datasets
-ultralytics
-scikit-learn
-matplotlib
-pillow
-
-
-
+import streamlit as st
 import tensorflow as tf
-import datasets
 import ultralytics
 import sklearn
-import matplotlib
+import matplotlib.pyplot as plt
+import numpy as np
+from PIL import Image
+
+st.title("AI Road Safety Assistant")
+
+st.write("Welcome to my AI Road Safety Project!")
+
+st.success("All libraries imported successfully!")
+
+st.write("TensorFlow version:", tf.__version__)
+st.write("Ultralytics version:", ultralytics.__version__)
+
+uploaded_file = st.file_uploader(
+    "Upload a road safety image",
+    type=["jpg", "jpeg", "png"]
+)
+
+if uploaded_file is not None:
+    image = Image.open(uploaded_file)
+    st.image(image, caption="Uploaded Image", use_container_width=True)
 
 print("TensorFlow:", tf.__version__)
 print("Ultralytics:", ultralytics.__version__)
