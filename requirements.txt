@@ -6,3 +6,4 @@ matplotlib
 numpy
 pillow
 datasets
+opencv-python-headless
