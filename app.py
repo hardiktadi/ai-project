@@ -11,7 +11,9 @@ st.write("Welcome to my AI Road Safety Project!")
 st.success("All libraries imported successfully!")
 
 st.write("TensorFlow version:", tf.__version__)
-st.write("Ultralytics version:", ultralytics.__version__)
+st.success("All libraries imported successfully!")
+
+st.write("TensorFlow version:", tf.__version__)
 
 uploaded_file = st.file_uploader(
     "Upload a road safety image",
