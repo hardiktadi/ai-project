@@ -23,11 +23,7 @@ uploaded_file = st.file_uploader(
 
 if uploaded_file is not None:
     image = Image.open(uploaded_file)
-    st.image(image, caption="Uploaded Image", use_container_width=True)
-
-print("TensorFlow:", tf.__version__)
-print("Ultralytics:", ultralytics.__version__)
-print("All libraries imported successfully!")
+    st.image(image, caption="Uploaded Image")
 
 
 
