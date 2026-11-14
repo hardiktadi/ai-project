@@ -1,10 +1,8 @@
 import streamlit as st
 import tensorflow as tf
-import ultralytics
-import sklearn
-import matplotlib.pyplot as plt
 import numpy as np
-from PIL import Image
+import matplotlib.pyplot as plt
+import sklearn
 
 st.title("AI Road Safety Assistant")
 
