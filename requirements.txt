@@ -1,9 +1,4 @@
 streamlit
-tensorflow
-ultralytics
-scikit-learn
-matplotlib
-numpy
-pillow
-datasets
-opencv-python-headless
+tensorflow==2.19.0
+ numpy
+ pillow

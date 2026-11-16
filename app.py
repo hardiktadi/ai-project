@@ -1,474 +1,129 @@
 import streamlit as st
-import tensorflow as tf
 import numpy as np
-import matplotlib.pyplot as plt
 from PIL import Image
-import sklearn
-
-st.title("AI Road Safety Assistant")
-
-st.write("Welcome to my AI Road Safety Project!")
-
-st.success("All libraries imported successfully!")
-
-st.write("TensorFlow version:", tf.__version__)
-st.success("All libraries imported successfully!")
-
-st.write("TensorFlow version:", tf.__version__)
-
-uploaded_file = st.file_uploader(
-    "Upload a road safety image",
-    type=["jpg", "jpeg", "png"]
-)
-
-if uploaded_file is not None:
-    image = Image.open(uploaded_file)
-    st.image(image, caption="Uploaded Image")
-
-
-
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
 import tensorflow as tf
 
-from datasets import load_dataset
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
-from PIL import Image
-import json
-import os
-
-print("All imports completed successfully!")
-print("TensorFlow version:", tf.__version__)
-
-# Check available hardware
-print("Available devices:", tf.config.list_physical_devices())
-
-
-
-# Download the GTSRB road sign dataset
-
-dataset = load_dataset("tanganke/gtsrb")
-
-print("Dataset downloaded successfully!")
-print(dataset)
-
-# Check dataset structure
-print("\nTraining columns:", dataset["train"].column_names)
-print("Testing columns:", dataset["test"].column_names)
-
-print("\nNumber of training images:", len(dataset["train"]))
-print("Number of testing images:", len(dataset["test"]))
-
-print("\nNumber of road sign classes:",
-      len(dataset["train"].features["label"].names))
-
-
-
-# Display 9 random road sign images
-
-import random
-
-class_names = dataset["train"].features["label"].names
-
-plt.figure(figsize=(10, 8))
-
-for i in range(9):
-    index = random.randint(0, len(dataset["train"]) - 1)
-
-    image = dataset["train"][index]["image"]
-    label = dataset["train"][index]["label"]
-
-    plt.subplot(3, 3, i + 1)
-    plt.imshow(image)
-    plt.title(class_names[label], fontsize=8)
-    plt.axis("off")
-
-plt.tight_layout()
-plt.show()
-
-
-
-# Convert images into numerical arrays
-
-IMG_SIZE = 32
-
-def prepare_images(split):
-    images = []
-    labels = []
-
-    for sample in split:
-        img = sample["image"].convert("RGB")
-        img = img.resize((IMG_SIZE, IMG_SIZE))
-
-        images.append(np.asarray(img, dtype=np.uint8))
-        labels.append(sample["label"])
-
-    return np.stack(images), np.array(labels)
-
-# Prepare training and testing data
-X_all, y_all = prepare_images(dataset["train"])
-X_test, y_test = prepare_images(dataset["test"])
-
-print("Training images:", X_all.shape)
-print("Testing images:", X_test.shape)
-
-# Divide training data into training and validation sets
-X_train, X_val, y_train, y_val = train_test_split(
-    X_all,
-    y_all,
-    test_size=0.15,
-    random_state=42,
-    stratify=y_all
-)
-
-# Remove unnecessary arrays to save memory
-del X_all, y_all
-
-print("\nTraining set:", X_train.shape)
-print("Validation set:", X_val.shape)
-print("Testing set:", X_test.shape)
-
-
-
-# Create the Convolutional Neural Network
-
-from tensorflow.keras import layers, models
-
-model = models.Sequential([
-
-    # Input layer: normalize image pixels
-    layers.Input(shape=(32, 32, 3)),
-    layers.Rescaling(1./255),
-
-    # First convolution block
-    layers.Conv2D(32, (3, 3), activation="relu"),
-    layers.MaxPooling2D((2, 2)),
-
-    # Second convolution block
-    layers.Conv2D(64, (3, 3), activation="relu"),
-    layers.MaxPooling2D((2, 2)),
-
-    # Third convolution block
-    layers.Conv2D(128, (3, 3), activation="relu"),
-
-    # Classification layers
-    layers.Flatten(),
-    layers.Dense(128, activation="relu"),
-    layers.Dropout(0.4),
-
-    # 43 road sign categories
-    layers.Dense(43, activation="softmax")
-])
-
-# Configure the model
-model.compile(
-    optimizer="adam",
-    loss="sparse_categorical_crossentropy",
-    metrics=["accuracy"]
-)
-
-# Display architecture
-model.summary()
-
-
-
-# Stop training if validation performance stops improving
-
-early_stop = tf.keras.callbacks.EarlyStopping(
-    monitor="val_loss",
-    patience=3,
-    restore_best_weights=True
-)
-
-# Train the CNN
-history = model.fit(
-    X_train,
-    y_train,
-    epochs=12,
-    batch_size=64,
-    validation_data=(X_val, y_val),
-    callbacks=[early_stop],
-    verbose=1
-)
-
-print("AI road sign model training completed!")
-
-
-
-# Plot training and validation accuracy
-
-plt.figure(figsize=(12, 4))
-
-plt.subplot(1, 2, 1)
-plt.plot(history.history["accuracy"], label="Training Accuracy")
-plt.plot(history.history["val_accuracy"], label="Validation Accuracy")
-plt.title("AI Model Accuracy")
-plt.xlabel("Epoch")
-plt.ylabel("Accuracy")
-plt.legend()
-
-plt.subplot(1, 2, 2)
-plt.plot(history.history["loss"], label="Training Loss")
-plt.plot(history.history["val_loss"], label="Validation Loss")
-plt.title("AI Model Loss")
-plt.xlabel("Epoch")
-plt.ylabel("Loss")
-plt.legend()
-
-plt.tight_layout()
-plt.show()
-
-
-
-# Evaluate model on unseen test data
-
-test_loss, test_accuracy = model.evaluate(
-    X_test,
-    y_test,
-    verbose=1
-)
-
-print("--------------------------------")
-print("ROAD SIGN MODEL EVALUATION")
-print("--------------------------------")
-
-print(f"Test Accuracy: {test_accuracy * 100:.2f}%")
-print(f"Test Loss: {test_loss:.4f}")
-
-
-
-# Generate predictions on the test dataset
-
-y_prob = model.predict(X_test, verbose=0)
-y_pred = np.argmax(y_prob, axis=1)
-
-# Print classification report
-print(classification_report(
-    y_test,
-    y_pred,
-    zero_division=0
-))
-
-# Create confusion matrix
-cm = confusion_matrix(y_test, y_pred)
-
-plt.figure(figsize=(12, 10))
-plt.imshow(cm, cmap="Blues")
-plt.title("Road Sign Recognition - Confusion Matrix")
-plt.xlabel("Predicted Class")
-plt.ylabel("Actual Class")
-plt.colorbar()
-plt.tight_layout()
-plt.show()
-
-
-
-# Create project folder
-os.makedirs("models", exist_ok=True)
-
-# Save trained AI model
-model.save("models/road_sign_model.keras")
-
-# Save class labels
-with open("models/road_sign_labels.json", "w") as f:
-    json.dump(class_names, f)
-
-print("Road sign AI model saved successfully!")
-
-
-
-from google.colab import files
-from IPython.display import display
-
-# Upload a road sign photograph
-uploaded = files.upload()
-
-# Get uploaded image
-filename = next(iter(uploaded))
-
-# Open and resize image
-img = Image.open(filename).convert("RGB")
-img_resized = img.resize((32, 32))
-
-# Convert into model input
-img_array = np.array(img_resized, dtype=np.float32)
-img_array = np.expand_dims(img_array, axis=0)
-
-# Predict road sign
-prediction = model.predict(img_array, verbose=0)[0]
-
-predicted_class = int(np.argmax(prediction))
-confidence = float(prediction[predicted_class]) * 100
-
-# Display results
-print("AI ROAD SIGN RECOGNITION")
-print("-----------------------")
-
-display(img)
-
-if confidence >= 60:
-    print("Detected sign:", class_names[predicted_class])
-    print(f"Confidence: {confidence:.2f}%")
-else:
-    print("Uncertain prediction. Please upload a clearer image.")
-    print(f"Highest model confidence: {confidence:.2f}%")
-
-
-test_loss, test_accuracy = model.evaluate(
-    X_test, y_test, verbose=1
-)
-
-print(f"Test accuracy: {test_accuracy * 100:.2f}%")
-print(f"Test loss: {test_loss:.4f}")
-
-import numpy as np
-import matplotlib.pyplot as plt
-
-predictions = model.predict(X_test[:12], verbose=0)
-predicted_labels = np.argmax(predictions, axis=1)
-
-plt.figure(figsize=(12, 8))
-
-for i in range(12):
-    plt.subplot(3, 4, i + 1)
-    plt.imshow(X_test[i])
-
-    actual = class_names[int(y_test[i])]
-    predicted = class_names[int(predicted_labels[i])]
-
-    plt.title(
-        f"Actual: {actual}\nPredicted: {predicted}",
-        fontsize=8
-    )
-    plt.axis("off")
-
-plt.tight_layout()
-plt.show()
-
-from ultralytics import YOLO
-from google.colab import files
-from IPython.display import display
-from PIL import Image
-import matplotlib.pyplot as plt
-
-# Load a small pre-trained YOLO model
-pedestrian_model = YOLO("yolov8n.pt")
-
-print("Pedestrian detection model loaded!")
-
-uploaded = files.upload()
-
-filename = next(iter(uploaded))
-
-print("Uploaded:", filename)
-
-image = Image.open(filename).convert("RGB")
-display(image)
-
-results = pedestrian_model.predict(
-    source=filename,
-    conf=0.35,
-    verbose=False
-)
-
-result = results[0]
-
-pedestrian_count = 0
-pedestrian_details = []
-
-for box in result.boxes:
-    class_id = int(box.cls[0])
-
-    # COCO class 0 represents a person
-    if class_id == 0:
-        pedestrian_count += 1
-        confidence = float(box.conf[0]) * 100
-
-        pedestrian_details.append(confidence)
-
-print("AI PEDESTRIAN DETECTION REPORT")
-print("--------------------------------")
-print("Pedestrians detected:", pedestrian_count)
-
-for i, confidence in enumerate(pedestrian_details, start=1):
-    print(f"Person {i}: {confidence:.2f}% confidence")
-
-annotated_image = result.plot()
-
-plt.figure(figsize=(12, 8))
-plt.imshow(annotated_image[:, :, ::-1])
-plt.title("AI Pedestrian Detection")
-plt.axis("off")
-plt.show()
-
-import os
-
-os.makedirs("outputs", exist_ok=True)
-
-output_path = "outputs/pedestrian_detection.jpg"
-
-result.save(filename=output_path)
-
-print("Detection image saved:", output_path)
-
-from google.colab import files
-
-files.download("models/road_sign_model.keras")
-files.download("models/road_sign_labels.json")
-
-from google.colab import files
-
-files.download("yolov8n.pt")
-
-test_loss, test_accuracy = model.evaluate(
-    X_test,
-    y_test,
-    verbose=1
-)
-
-print("ROAD SIGN MODEL RESULTS")
-print("-----------------------")
-print(f"Accuracy: {test_accuracy * 100:.2f}%")
-print(f"Loss: {test_loss:.4f}")
-
-import numpy as np
-import matplotlib.pyplot as plt
-
-predictions = model.predict(X_test[:12], verbose=0)
-predicted_labels = np.argmax(predictions, axis=1)
-
-plt.figure(figsize=(12, 8))
-
-for i in range(12):
-    plt.subplot(3, 4, i + 1)
-    plt.imshow(X_test[i])
-
-    actual = class_names[int(y_test[i])]
-    predicted = class_names[int(predicted_labels[i])]
-
-    plt.title(f"Actual: {actual}\nPredicted: {predicted}", fontsize=8)
-    plt.axis("off")
-
-plt.tight_layout()
-plt.show()
-
-from ultralytics import YOLO
-from google.colab import files
-
-detector = YOLO("yolov8n.pt")
-
-uploaded = files.upload()
-filename = next(iter(uploaded))
-
-results = detector.predict(
-    source=filename,
-    classes=[0],
-    conf=0.35,
-    verbose=False
-)
-
-print(results[0].verbose())
-results[0].show()
-
+st.set_page_config(page_title="AI Road Safety Assistant", page_icon="🛣️", layout="wide")
+
+CLASS_NAMES = [
+    "Speed limit (20 km/h)", "Speed limit (30 km/h)", "Speed limit (50 km/h)",
+    "Speed limit (60 km/h)", "Speed limit (70 km/h)", "Speed limit (80 km/h)",
+    "End of speed limit (80 km/h)", "Speed limit (100 km/h)", "Speed limit (120 km/h)",
+    "No passing", "No passing for vehicles over 3.5 metric tons",
+    "Right-of-way at the next intersection", "Priority road", "Yield", "Stop",
+    "No vehicles", "Vehicles over 3.5 metric tons prohibited", "No entry",
+    "General caution", "Dangerous curve to the left", "Dangerous curve to the right",
+    "Double curve", "Bumpy road", "Slippery road", "Road narrows on the right",
+    "Road work", "Traffic signals", "Pedestrians", "Children crossing",
+    "Bicycles crossing", "Beware of ice/snow", "Wild animals crossing",
+    "End of all speed and passing limits", "Turn right ahead", "Turn left ahead",
+    "Ahead only", "Go straight or right", "Go straight or left", "Keep right",
+    "Keep left", "Roundabout mandatory", "End of no passing",
+    "End of no passing by vehicles over 3.5 metric tons"
+]
+
+ADVICE = {
+    0: "Keep your speed at or below 20 km/h.",
+    1: "Keep your speed at or below 30 km/h.",
+    2: "Keep your speed at or below 50 km/h.",
+    3: "Keep your speed at or below 60 km/h.",
+    4: "Keep your speed at or below 70 km/h.",
+    5: "Keep your speed at or below 80 km/h.",
+    6: "The previous 80 km/h speed restriction has ended. Follow the next posted limit.",
+    7: "Keep your speed at or below 100 km/h.",
+    8: "Keep your speed at or below 120 km/h.",
+    9: "Do not overtake other vehicles.",
+    10: "Do not overtake vehicles covered by this restriction.",
+    11: "Give way as required at the next intersection.",
+    12: "You are travelling on a priority road. Continue carefully.",
+    13: "Slow down and give way to traffic with priority.",
+    14: "Come to a complete stop and proceed only when safe.",
+    15: "Vehicles are prohibited from entering this road.",
+    16: "Vehicles over 3.5 metric tons are prohibited.",
+    17: "Do not enter this road from this direction.",
+    18: "Take extra care and watch for hazards.",
+    19: "Slow down and prepare for a left-hand curve.",
+    20: "Slow down and prepare for a right-hand curve.",
+    21: "Reduce speed and be prepared for two successive curves.",
+    22: "Slow down and watch for an uneven road surface.",
+    23: "Reduce speed; the road may be slippery.",
+    24: "Be prepared for the road to become narrower on the right.",
+    25: "Slow down and watch for road workers and temporary hazards.",
+    26: "Watch the traffic signals and obey their instructions.",
+    27: "Slow down and watch carefully for pedestrians.",
+    28: "Slow down; children may be crossing.",
+    29: "Watch for cyclists crossing the road.",
+    30: "Watch for icy or snowy road conditions.",
+    31: "Watch for wild animals crossing.",
+    32: "The indicated restrictions have ended. Continue to obey other signs.",
+    33: "Turn right ahead, when safe.",
+    34: "Turn left ahead, when safe.",
+    35: "Continue straight ahead.",
+    36: "Continue straight or turn right.",
+    37: "Continue straight or turn left.",
+    38: "Keep to the right of the traffic island or obstruction.",
+    39: "Keep to the left of the traffic island or obstruction.",
+    40: "Follow the roundabout direction and give way as required.",
+    41: "The no-passing restriction has ended.",
+    42: "The heavy-vehicle no-passing restriction has ended."
+}
+
+@st.cache_resource
+def load_model():
+    return tf.keras.models.load_model("road_sign_model.keras", compile=False)
+
+st.title("🛣️ AI Road Safety Assistant")
+st.write("Upload a road-sign photo to classify it with your trained 43-class CNN model.")
+st.info("Educational prototype: always follow official road signs, local traffic laws, and road conditions.")
+
+try:
+    model = load_model()
+except Exception as e:
+    st.error("The trained model could not be loaded. Check that road_sign_model.keras is in the same GitHub folder as app.py.")
+    st.exception(e)
+    st.stop()
+
+uploaded = st.file_uploader("Upload a road-sign image", type=["jpg", "jpeg", "png"])
+
+if uploaded:
+    try:
+        image = Image.open(uploaded).convert("RGB")
+        left, right = st.columns(2)
+        with left:
+            st.image(image, caption="Uploaded road-sign image", use_container_width=True)
+
+        # This matches the notebook: RGB, resize to 32x32.
+        # The model itself contains a Rescaling(1./255) layer.
+        resized = image.resize((32, 32))
+        array = np.asarray(resized, dtype=np.float32)
+        batch = np.expand_dims(array, axis=0)
+
+        with st.spinner("Analysing the road sign..."):
+            probabilities = model.predict(batch, verbose=0)[0]
+
+        predicted_index = int(np.argmax(probabilities))
+        confidence = float(probabilities[predicted_index])
+        with right:
+            st.subheader("🤖 AI detection result")
+            st.success(CLASS_NAMES[predicted_index])
+            st.metric("Model confidence", f"{confidence * 100:.1f}%")
+            st.progress(max(0.0, min(1.0, confidence)))
+            st.markdown("**Road safety guidance**")
+            st.write(ADVICE.get(predicted_index, "Observe the sign and follow official traffic instructions."))
+
+            st.markdown("**Top 3 predictions**")
+            top_indices = np.argsort(probabilities)[-3:][::-1]
+            for idx in top_indices:
+                st.write(f"{CLASS_NAMES[int(idx)]}: {float(probabilities[idx]) * 100:.1f}%")
+    except Exception as e:
+        st.error("Could not analyse this image. Please try another clear JPG or PNG image.")
+        st.exception(e)
+
+with st.expander("About this project"):
+    st.write("""
+    - **Dataset:** German Traffic Sign Recognition Benchmark (GTSRB), loaded in the training notebook.
+    - **Model:** Convolutional Neural Network (CNN) built with TensorFlow/Keras.
+    - **Input:** RGB image resized to 32 × 32 pixels.
+    - **Output:** One of 43 road-sign classes, confidence score, top-three predictions, and safety guidance.
+    - **Database:** No separate database is used by this prototype; the trained model file stores learned parameters.
+    """)
